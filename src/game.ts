@@ -11,6 +11,8 @@ const GAME_STATUS = {
   PLAYING: 'playing',
   GAME_OVER: 'game_over',
 } as const;
+
+const MAX_JUMP_COUNT = 2;
 type GameStatus = (typeof GAME_STATUS)[keyof typeof GAME_STATUS];
 
 export class Game {
@@ -18,8 +20,7 @@ export class Game {
   static RENDER_HEIGHT = 600;
   static PLAYER_CENTER = 300;
 
-  private jumpCount: number = 2;
-  private maxJump: number = 2; // 連続できる最大ジャンプ回数
+  private jumpCount: number = MAX_JUMP_COUNT;
 
   private engine: Engine;
   private render: Render;
@@ -67,6 +68,10 @@ export class Game {
     Render.run(this.render);
 
     this.registerEvents();
+
+    document.getElementById('restart-button')?.addEventListener('click', () => {
+      this.resetGame();
+    });
   }
 
   private resetJumpCount(event: Matter.IEventCollision<Engine>) {
@@ -114,7 +119,6 @@ export class Game {
 
   private gameOver() {
     this.gameStatus = GAME_STATUS.GAME_OVER;
-    console.log('Game Over'); // ゲームオーバー時の処理をここに記述
     const gameOverScreen = document.getElementById('game-over-screen');
     if (gameOverScreen) {
       gameOverScreen.style.display = 'flex'; // ゲームオーバー画面を表示
@@ -131,10 +135,13 @@ export class Game {
     Engine.clear(this.engine);
   }
 
+  private jumpForce() {
+    return this.jumpCount === 0 ? -0.07 : -0.09;
+  }
+
   private registerEvents() {
     window.addEventListener('keydown', (event) => {
       const force = 0.03;
-      const jumpForce = -0.09;
       switch (event.key) {
         case 'ArrowLeft':
           Body.applyForce(this.player, this.player.position, { x: -force, y: 0 });
@@ -143,9 +150,9 @@ export class Game {
           Body.applyForce(this.player, this.player.position, { x: force, y: 0 });
           break;
         case ' ':
-          if (this.jumpCount < this.maxJump) {
+          if (this.jumpCount < MAX_JUMP_COUNT) {
             console.log('Game  this.jumpCount:', this.jumpCount);
-            Body.applyForce(this.player, this.player.position, { x: 0, y: jumpForce });
+            Body.applyForce(this.player, this.player.position, { x: 0, y: this.jumpForce() });
             this.jumpCount++;
           }
           break;
