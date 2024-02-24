@@ -1,5 +1,5 @@
 import { Engine, Render, Bodies, World, Body, Runner, Events } from 'matter-js';
-import { BODY_LABEL, GAME_STATUS } from './consts/game';
+import { BODY_LABEL, GAME_STATUS } from './const/game';
 
 function createSpikeBlock(x: number, y: number, width: number, height: number) {
   // 下部の正方形（四角形）
