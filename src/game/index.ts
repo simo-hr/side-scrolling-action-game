@@ -1,7 +1,8 @@
-import { Engine, Render, Bodies, World, Body, Runner, Events } from 'matter-js';
+import { Engine, Render, Bodies, World, Runner, Events } from 'matter-js';
 import { BODY_LABEL, GAME_STATUS, PLAYER_CENTER, RENDER_HEIGHT, RENDER_WIDTH } from './const/game';
-import { createSpikeBlock } from './bodies/spike';
-import { Player, createPlayer } from './bodies/player';
+
+import { Player } from './bodies/player';
+import { Stage } from './stage';
 
 type GameStatus = (typeof GAME_STATUS)[keyof typeof GAME_STATUS];
 
@@ -9,16 +10,11 @@ export class Game {
   private engine: Engine;
   private render: Render;
   private runner: Runner;
-
   private player: Player;
-  private block: Body;
-  private ground: Body;
+  private stage: Stage;
   private gameStatus: GameStatus = GAME_STATUS.READY;
 
   constructor() {
-    // プレイヤーの作成
-    this.player = new Player(PLAYER_CENTER, 400, 40, 80);
-
     this.engine = Engine.create();
     this.render = Render.create({
       element: document.getElementById('game')!,
@@ -32,10 +28,8 @@ export class Game {
       },
     });
 
-    // createGameObjectsで初期化をするが、エラーを回避するためダミーで明示的に初期化
-
-    this.block = Bodies.rectangle(0, 0, 0, 0);
-    this.ground = Bodies.rectangle(0, 0, 0, 0);
+    this.player = new Player();
+    this.stage = new Stage();
     this.createGameObjects();
 
     Events.on(this.engine, 'afterUpdate', () => {
@@ -47,7 +41,7 @@ export class Game {
     });
 
     Events.on(this.engine, 'collisionStart', (event) => {
-      this.resetJumpCount(event);
+      this.player.resetJumpCount(event);
     });
 
     Events.on(this.engine, 'collisionStart', (event) => {
@@ -67,28 +61,9 @@ export class Game {
     Render.run(this.render);
   }
 
-  private resetJumpCount(event: Matter.IEventCollision<Engine>) {
-    for (const pair of event.pairs) {
-      if (
-        (pair.bodyA === this.player.body && pair.bodyB.label === BODY_LABEL.BLOCK) ||
-        (pair.bodyB === this.player.body && pair.bodyB.label === BODY_LABEL.BLOCK) ||
-        (pair.bodyA === this.player.body && pair.bodyB.label === BODY_LABEL.GROUND) ||
-        (pair.bodyB === this.player.body && pair.bodyB.label === BODY_LABEL.GROUND)
-      ) {
-        this.player.setJumpCount(0);
-      }
-    }
-  }
-
   private createGameObjects() {
-    this.block = Bodies.rectangle(400, 500, 20, 20, { label: BODY_LABEL.BLOCK, isStatic: true });
-
-    // this.ground = Bodies.rectangle(155, 600, 300, 30, { isStatic: true, label: BODY_LABEL.GROUND });
-    this.ground = Bodies.rectangle(155, 600, 1000, 30, { isStatic: true, label: BODY_LABEL.GROUND });
-
-    // トゲブロックの作成
-    const spike = createSpikeBlock(600, 500, 40, 40);
-    World.add(this.engine.world, [this.player.body, this.block, this.ground, spike]);
+    this.stage.draw(this.engine);
+    World.add(this.engine.world, [this.player.body]);
   }
 
   private updateView() {
@@ -106,7 +81,7 @@ export class Game {
     this.gameStatus = GAME_STATUS.GAME_OVER;
     const gameOverScreen = document.getElementById('game-over-screen');
     if (gameOverScreen) {
-      gameOverScreen.style.display = 'flex'; // ゲームオーバー画面を表示
+      gameOverScreen.style.display = 'flex';
     }
   }
 
