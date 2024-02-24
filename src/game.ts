@@ -1,16 +1,33 @@
 import { Engine, Render, Bodies, World, Body, Runner, Events } from 'matter-js';
+import { BODY_LABEL, GAME_STATUS } from './consts/game';
 
-const BODY_LABEL = {
-  PLAYER: 'player',
-  BLOCK: 'block',
-  GROUND: 'ground',
-};
+function createSpikeBlock(x: number, y: number, width: number, height: number) {
+  // 下部の正方形（四角形）
+  // 下部の四角形（正方形の場合はwidthとheightが同じになる）
+  const baseHeight = height / 2; // 四角形の高さ
+  const base = Bodies.rectangle(x, y + baseHeight / 2, width, baseHeight, { isStatic: true });
 
-const GAME_STATUS = {
-  READY: 'ready',
-  PLAYING: 'playing',
-  GAME_OVER: 'game_over',
-} as const;
+  // 上部の三角形
+  const spikeHeight = height / 2;
+  // 三角形の中心位置を四角形の上辺に合わせる
+  // y座標は四角形の上辺のy座標から三角形の高さの半分を引いた位置
+  const spike = Bodies.polygon(x, y - spikeHeight + baseHeight / 2, 3, spikeHeight, {
+    isStatic: true,
+    angle: Math.PI / 2,
+    label: BODY_LABEL.SPIKE,
+    render: {
+      fillStyle: 'gray',
+    },
+  });
+  // 複合体を作成
+  const spikeBlock = Body.create({
+    parts: [base, spike], // 二つの部品を組み合わせる
+    isStatic: true,
+    label: BODY_LABEL.SPIKE_BLOCK,
+  });
+
+  return spikeBlock;
+}
 
 const MAX_JUMP_COUNT = 2;
 type GameStatus = (typeof GAME_STATUS)[keyof typeof GAME_STATUS];
@@ -63,6 +80,16 @@ export class Game {
       this.resetJumpCount(event);
     });
 
+    Events.on(this.engine, 'collisionStart', (event) => {
+      for (let pair of event.pairs) {
+        const labels = [pair.bodyA.label, pair.bodyB.label];
+        // プレイヤーとトゲブロックの衝突を検出
+        if (labels.includes(BODY_LABEL.PLAYER) && labels.includes(BODY_LABEL.SPIKE)) {
+          this.gameOver();
+        }
+      }
+    });
+
     this.runner = Runner.create();
     Runner.run(this.runner, this.engine);
     Render.run(this.render);
@@ -102,8 +129,13 @@ export class Game {
 
     // 敵の作成（簡易的な例）
     this.block = Bodies.rectangle(400, 500, 20, 20, { label: BODY_LABEL.BLOCK, isStatic: true });
-    this.ground = Bodies.rectangle(155, 600, 300, 30, { isStatic: true, label: BODY_LABEL.GROUND });
-    World.add(this.engine.world, [this.player, this.block, this.ground]);
+
+    // this.ground = Bodies.rectangle(155, 600, 300, 30, { isStatic: true, label: BODY_LABEL.GROUND });
+    this.ground = Bodies.rectangle(155, 600, 1000, 30, { isStatic: true, label: BODY_LABEL.GROUND });
+
+    // トゲブロックの作成
+    const spike = createSpikeBlock(600, 500, 40, 40);
+    World.add(this.engine.world, [this.player, this.block, this.ground, spike]);
   }
 
   private updateView() {
@@ -136,7 +168,7 @@ export class Game {
   }
 
   private jumpForce() {
-    return this.jumpCount === 0 ? -0.07 : -0.09;
+    return this.jumpCount === 0 ? -0.09 : -0.09;
   }
 
   private registerEvents() {
